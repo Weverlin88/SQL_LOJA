@@ -1,0 +1,150 @@
+CREATE TABLE Usuarios (
+    ID INT PRIMARY KEY,
+    Nome VARCHAR(50),
+    Senha VARCHAR(50)
+);
+
+CREATE TABLE Pessoas (
+    ID INT PRIMARY KEY,
+    Nome VARCHAR(100),
+    Endereco VARCHAR(200),
+    Contato VARCHAR(50)
+);
+
+
+CREATE TABLE PessoasFisicas (
+    ID_Pessoa INT PRIMARY KEY,
+    CPF VARCHAR(14),
+    FOREIGN KEY (ID_Pessoa) REFERENCES Pessoas(ID)
+);
+
+CREATE TABLE PessoasJuridicas (
+    ID_Pessoa INT PRIMARY KEY,
+    CNPJ VARCHAR(18),
+    FOREIGN KEY (ID_Pessoa) REFERENCES Pessoas(ID)
+);
+
+CREATE TABLE Produtos (
+    ID INT PRIMARY KEY,
+    Nome VARCHAR(100),
+    Quantidade INT,
+    Preco DECIMAL(10, 2)
+);
+
+CREATE TABLE Movimentacoes (
+    ID INT PRIMARY KEY,
+    ID_Produto INT,
+    ID_Pessoa INT,
+    Tipo VARCHAR(10),
+    Quantidade INT,
+    PrecoUnitario DECIMAL(10, 2),
+    ValorTotal DECIMAL(10, 2),
+    FOREIGN KEY (ID_Produto) REFERENCES Produtos(ID),
+    FOREIGN KEY (ID_Pessoa) REFERENCES Pessoas(ID)
+);
+
+ 
+
+CREATE SEQUENCE PessoaID
+    START WITH 1
+    INCREMENT BY 1;
+
+INSERT INTO Usuarios (ID, Nome, Senha)
+VALUES (1, 'op1', 'op1'),
+                  (2, 'op2', 'op2');
+
+-- Inserção de produtos
+INSERT INTO Produtos (ID, Nome, Quantidade, Preco)
+VALUES (1, 'Banana', 10, 6.00),
+                  (2, 'Laranja', 20, 5.00);
+
+DECLARE @NextID INT;
+SET @NextID = NEXT VALUE FOR PessoaID;
+
+INSERT INTO Pessoas (ID, Nome, Endereco, Contato)
+VALUES (@NextID, 'Ana', ' Rua A nº10 Gloria BH/MG', '1234578');
+
+INSERT INTO PessoasFisicas (ID_Pessoa, CPF)
+VALUES (@NextID, '123.456.789-00');
+
+SET @NextID = NEXT VALUE FOR PessoaID;
+
+INSERT INTO Pessoas (ID, Nome, Endereco, Contato)
+VALUES (@NextID, 'Mercado', 'Centro', ' mercado@email.com');
+
+INSERT INTO PessoasJuridicas (ID_Pessoa, CNPJ)
+VALUES (@NextID, '12.345.678/0001-00');
+
+ 
+
+INSERT INTO Movimentacoes (ID, ID_Produto, ID_Pessoa, Tipo, Quantidade, PrecoUnitario, ValorTotal)
+VALUES (1, 1, 2, 'Compra', 5, 6, 30.00),
+                  (2, 2, 1, 'Venda', 3, 5.00, 15.00);
+
+-- Dados completos de pessoas físicas
+SELECT *
+FROM Pessoas
+JOIN PessoasFisicas ON Pessoas.ID = PessoasFisicas.ID_Pessoa;
+
+-- Dados completos de pessoas jurídicas
+SELECT *
+FROM Pessoas
+JOIN PessoasJuridicas ON Pessoas.ID = PessoasJuridicas.ID_Pessoa;
+
+-- Movimentações de entrada
+SELECT p.Nome AS Produto, pj.Nome AS Fornecedor, m.Quantidade, m.PrecoUnitario, m.ValorTotal
+FROM Movimentacoes m
+JOIN Produtos p ON m.ID_Produto = p.ID
+JOIN PessoasJuridicas pj ON m.ID_Pessoa = pj.ID_Pessoa
+WHERE m.Tipo = 'Compra';
+
+-- Movimentações de saída
+SELECT p.Nome AS Produto, pf.Nome AS Comprador, m.Quantidade, m.PrecoUnitario, m.ValorTotal
+FROM Movimentacoes m
+JOIN Produtos p ON m.ID_Produto = p.ID
+JOIN PessoasFisicas pf ON m.ID_Pessoa = pf.ID_Pessoa
+WHERE m.Tipo = 'Venda';
+
+ 
+
+-- Valor total das entradas agrupadas por produto
+SELECT p.Nome AS Produto, SUM(m.ValorTotal) AS TotalEntrada
+FROM Movimentacoes m
+JOIN Produtos p ON m.ID_Produto = p.ID
+WHERE m.Tipo = 'Compra'
+GROUP BY p.Nome;
+
+-- Valor total das saídas agrupadas por produto
+SELECT p.Nome AS Produto, SUM(m.ValorTotal) AS TotalSaida
+FROM Movimentacoes m
+JOIN Produtos p ON m.ID_Produto = p.ID
+WHERE m.Tipo = 'Venda'
+GROUP BY p.Nome;
+
+-- Operadores que não efetuaram movimentações de entrada
+SELECT u.Nome AS Operador
+FROM Usuarios u
+LEFT JOIN Movimentacoes m ON u.ID = m.ID_Pessoa
+WHERE m.ID IS NULL;
+
+-- Valor total de entrada agrupado por operador
+SELECT u.Nome AS Operador, SUM(m.ValorTotal) AS TotalEntrada
+FROM Usuarios u
+JOIN Movimentacoes m ON u.ID = m.ID_Pessoa
+WHERE m.Tipo = 'Compra'
+GROUP BY u.Nome;
+
+-- Valor total de saída agrupado por operador
+SELECT u.Nome AS Operador, SUM(m.ValorTotal) AS TotalSaida
+FROM Usuarios u
+JOIN Movimentacoes m ON u.ID = m.ID_Pessoa
+WHERE m.Tipo = 'Venda'
+GROUP BY u.Nome;
+
+-- Valor médio de venda por produto (média ponderada)
+SELECT p.Nome AS Produto, SUM(m.ValorTotal) / SUM(m.Quantidade) AS ValorMedioVenda
+FROM Movimentacoes m
+JOIN Produtos p ON m.ID_Produto = p.ID
+WHERE m.Tipo = 'Venda'
+GROUP BY p.Nome;
+
